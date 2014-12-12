@@ -6,3 +6,6 @@ authors = ["Alex Crichton <alex@alexcrichton.com>", "Samuel Fredrickson <kinghaj
 readme = "README.md"
 # see also LICENSE-APACHE
 license-file = "LICENSE-MIT"
+homepage = "https://github.com/kinghajj/deque"
+repository = "git://github.com/kinghajj/deque.git"
+keywords = ["concurrent", "deque"]
