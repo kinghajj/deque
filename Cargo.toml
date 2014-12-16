@@ -1,7 +1,7 @@
 [package]
 name = "deque"
 description = "A (mostly) lock-free concurrent work-stealing deque"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Alex Crichton <alex@alexcrichton.com>", "Samuel Fredrickson <kinghajj@gmail.com>"]
 readme = "README.md"
 # see also LICENSE-APACHE
