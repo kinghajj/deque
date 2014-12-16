@@ -1,5 +1,7 @@
 # deque - A (mostly) lock-free concurrent work-stealing deque
 
+[![Build Status](https://travis-ci.org/kinghajj/deque.svg?branch=master)](https://travis-ci.org/kinghajj/deque)
+
 This module contains an implementation of the Chase-Lev work stealing deque
 described in "Dynamic Circular Work-Stealing Deque". The implementation is
 heavily based on the pseudocode found in the paper.
