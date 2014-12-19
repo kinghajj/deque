@@ -48,7 +48,6 @@
 
 extern crate alloc;
 extern crate core;
-extern crate rustrt;
 
 // NB: the "buffer pool" strategy is not done for speed, but rather for
 //     correctness. For more info, see the comment on `swap_buffer`
@@ -58,16 +57,13 @@ extern crate rustrt;
 
 pub use self::Stolen::*;
 
-//use core::prelude::*;
-
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use alloc::heap::{allocate, deallocate};
 use std::boxed::Box;
 use std::vec::Vec;
 use core::kinds::marker;
 use std::mem::{forget, min_align_of, size_of, transmute};
 use core::ptr;
-use rustrt::exclusive::Exclusive;
 
 use std::sync::atomic::{AtomicInt, AtomicPtr, SeqCst};
 
@@ -126,7 +122,7 @@ pub enum Stolen<T> {
 /// will only use this structure when allocating a new buffer or deallocating a
 /// previous one.
 pub struct BufferPool<T> {
-    pool: Arc<Exclusive<Vec<Box<Buffer<T>>>>>,
+    pool: Arc<Mutex<Vec<Box<Buffer<T>>>>>,
 }
 
 /// An internal buffer used by the chase-lev deque. This structure is actually
@@ -153,7 +149,7 @@ impl<T: Send> BufferPool<T> {
     /// Allocates a new buffer pool which in turn can be used to allocate new
     /// deques.
     pub fn new() -> BufferPool<T> {
-        BufferPool { pool: Arc::new(Exclusive::new(Vec::new())) }
+        BufferPool { pool: Arc::new(Mutex::new(Vec::new())) }
     }
 
     /// Allocates a new work-stealing deque which will send/receiving memory to
@@ -176,12 +172,10 @@ impl<T: Send> BufferPool<T> {
     }
 
     fn free(&self, buf: Box<Buffer<T>>) {
-        unsafe {
-            let mut pool = self.pool.lock();
-            match pool.iter().position(|v| v.size() > buf.size()) {
-                Some(i) => pool.insert(i, buf),
-                None => pool.push(buf),
-            }
+        let mut pool = self.pool.lock();
+        match pool.iter().position(|v| v.size() > buf.size()) {
+            Some(i) => pool.insert(i, buf),
+            None => pool.push(buf),
         }
     }
 }
@@ -420,9 +414,9 @@ mod tests {
     use super::{Data, BufferPool, Abort, Empty, Worker, Stealer};
 
     use std::mem;
-    use rustrt::thread::Thread;
     use std::rand;
     use std::rand::Rng;
+    use std::thread::{Thread, JoinGuard};
     use std::sync::atomic::{AtomicBool, INIT_ATOMIC_BOOL, SeqCst,
                        AtomicUint, INIT_ATOMIC_UINT};
     use std::vec;
@@ -446,7 +440,7 @@ mod tests {
         static AMT: int = 100000;
         let pool = BufferPool::<int>::new();
         let (w, s) = pool.deque();
-        let t = Thread::start(move || {
+        let t = Thread::spawn(move || {
             let mut left = AMT;
             while left > 0 {
                 match s.steal() {
@@ -471,7 +465,7 @@ mod tests {
         static AMT: int = 100000;
         let pool = BufferPool::<(int, int)>::new();
         let (w, s) = pool.deque();
-        let t = Thread::start(move || {
+        let t = Thread::spawn(move || {
             let mut left = AMT;
             while left > 0 {
                 match s.steal() {
@@ -499,7 +493,7 @@ mod tests {
 
         let threads = range(0, nthreads).map(|_| {
             let s = s.clone();
-            Thread::start(move || {
+            Thread::spawn(move || {
                 unsafe {
                     while (*unsafe_remaining).load(SeqCst) > 0 {
                         match s.steal() {
@@ -512,7 +506,7 @@ mod tests {
                     }
                 }
             })
-        }).collect::<Vec<Thread<()>>>();
+        }).collect::<Vec<JoinGuard<()>>>();
 
         while remaining.load(SeqCst) > 0 {
             match w.pop() {
@@ -540,10 +534,10 @@ mod tests {
         let pool = BufferPool::<Box<int>>::new();
         let threads = range(0, AMT).map(|_| {
             let (w, s) = pool.deque();
-            Thread::start(move || {
+            Thread::spawn(move || {
                 stampede(w, s, 4, 10000);
             })
-        }).collect::<Vec<Thread<()>>>();
+        }).collect::<Vec<JoinGuard<()>>>();
 
         for thread in threads.into_iter() {
             thread.join();
@@ -561,7 +555,7 @@ mod tests {
 
         let threads = range(0, NTHREADS).map(|_| {
             let s = s.clone();
-            Thread::start(move || {
+            Thread::spawn(move || {
                 loop {
                     match s.steal() {
                         Data(2) => { HITS.fetch_add(1, SeqCst); }
@@ -571,7 +565,7 @@ mod tests {
                     }
                 }
             })
-        }).collect::<Vec<Thread<()>>>();
+        }).collect::<Vec<JoinGuard<()>>>();
 
         let mut rng = rand::task_rng();
         let mut expected = 0;
@@ -620,7 +614,7 @@ mod tests {
                 *mem::transmute::<&Box<AtomicUint>,
                                   *const *mut AtomicUint>(&unique_box)
             };
-            (Thread::start(move || {
+            (Thread::spawn(move || {
                 unsafe {
                     loop {
                         match s.steal() {
