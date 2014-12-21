@@ -457,7 +457,7 @@ mod tests {
             w.push(1);
         }
 
-        t.join();
+        assert!(t.join().is_ok());
     }
 
     #[test]
@@ -480,7 +480,7 @@ mod tests {
             w.push((1, 10));
         }
 
-        t.join();
+        assert!(t.join().is_ok());
     }
 
     fn stampede(w: Worker<Box<int>>, s: Stealer<Box<int>>,
@@ -517,7 +517,7 @@ mod tests {
         }
 
         for thread in threads.into_iter() {
-            thread.join();
+            assert!(thread.join().is_ok());
         }
     }
 
@@ -540,7 +540,7 @@ mod tests {
         }).collect::<Vec<JoinGuard<()>>>();
 
         for thread in threads.into_iter() {
-            thread.join();
+            assert!(thread.join().is_ok());
         }
     }
 
@@ -592,7 +592,7 @@ mod tests {
         DONE.store(true, SeqCst);
 
         for thread in threads.into_iter() {
-            thread.join();
+            assert!(thread.join().is_ok());
         }
 
         assert_eq!(HITS.load(SeqCst), expected as uint);
@@ -657,7 +657,7 @@ mod tests {
         DONE.store(true, SeqCst);
 
         for thread in threads.into_iter() {
-            thread.join();
+            assert!(thread.join().is_ok());
         }
     }
 }
