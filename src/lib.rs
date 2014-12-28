@@ -145,6 +145,8 @@ struct Buffer<T> {
     log_size: uint,
 }
 
+unsafe impl<T: Send> Send for Buffer<T> { }
+
 impl<T: Send> BufferPool<T> {
     /// Allocates a new buffer pool which in turn can be used to allocate new
     /// deques.
