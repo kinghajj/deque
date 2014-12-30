@@ -485,18 +485,24 @@ mod tests {
         assert!(t.join().is_ok());
     }
 
+    struct UnsafeAtomicUint(*mut AtomicUint);
+
+    unsafe impl Send for UnsafeAtomicUint { }
+    impl Copy for UnsafeAtomicUint { }
+
     fn stampede(w: Worker<Box<int>>, s: Stealer<Box<int>>,
                 nthreads: int, amt: uint) {
         for _ in range(0, amt) {
             w.push(box 20);
         }
         let mut remaining = AtomicUint::new(amt);
-        let unsafe_remaining: *mut AtomicUint = &mut remaining;
+        let unsafe_remaining = UnsafeAtomicUint(&mut remaining);
 
         let threads = range(0, nthreads).map(|_| {
             let s = s.clone();
             Thread::spawn(move || {
                 unsafe {
+                    let UnsafeAtomicUint(unsafe_remaining) = unsafe_remaining;
                     while (*unsafe_remaining).load(SeqCst) > 0 {
                         match s.steal() {
                             Data(box 20) => {
@@ -612,12 +618,13 @@ mod tests {
         let (threads, hits) = vec::unzip(range(0, NTHREADS).map(|_| {
             let s = s.clone();
             let unique_box = box AtomicUint::new(0);
-            let thread_box = unsafe {
+            let thread_box = UnsafeAtomicUint(unsafe {
                 *mem::transmute::<&Box<AtomicUint>,
                                   *const *mut AtomicUint>(&unique_box)
-            };
+            });
             (Thread::spawn(move || {
                 unsafe {
+                    let UnsafeAtomicUint(thread_box) = thread_box;
                     loop {
                         match s.steal() {
                             Data((1, 2)) => {
