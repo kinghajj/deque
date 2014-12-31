@@ -165,7 +165,7 @@ impl<T: Send> BufferPool<T> {
 
     fn alloc(&mut self, bits: uint) -> Box<Buffer<T>> {
         unsafe {
-            let mut pool = self.pool.lock();
+            let mut pool = self.pool.lock().unwrap();
             match pool.iter().position(|x| x.size() >= (1 << bits)) {
                 Some(i) => pool.remove(i).unwrap(),
                 None => box Buffer::new(bits)
@@ -174,7 +174,7 @@ impl<T: Send> BufferPool<T> {
     }
 
     fn free(&self, buf: Box<Buffer<T>>) {
-        let mut pool = self.pool.lock();
+        let mut pool = self.pool.lock().unwrap();
         match pool.iter().position(|v| v.size() > buf.size()) {
             Some(i) => pool.insert(i, buf),
             None => pool.push(buf),
