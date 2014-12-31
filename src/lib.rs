@@ -575,7 +575,7 @@ mod tests {
             })
         }).collect::<Vec<JoinGuard<()>>>();
 
-        let mut rng = rand::task_rng();
+        let mut rng = rand::thread_rng();
         let mut expected = 0;
         while expected < AMT {
             if rng.gen_range(0i, 3) == 2 {
@@ -639,7 +639,7 @@ mod tests {
             }), unique_box)
         }));
 
-        let mut rng = rand::task_rng();
+        let mut rng = rand::thread_rng();
         let mut myhit = false;
         'outer: loop {
             for _ in range(0, rng.gen_range(0, AMT)) {
