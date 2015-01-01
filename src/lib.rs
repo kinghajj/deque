@@ -167,7 +167,7 @@ impl<T: Send> BufferPool<T> {
         unsafe {
             let mut pool = self.pool.lock().unwrap();
             match pool.iter().position(|x| x.size() >= (1 << bits)) {
-                Some(i) => pool.remove(i).unwrap(),
+                Some(i) => pool.remove(i),
                 None => box Buffer::new(bits)
             }
         }
@@ -421,7 +421,6 @@ mod tests {
     use std::thread::{Thread, JoinGuard};
     use std::sync::atomic::{AtomicBool, INIT_ATOMIC_BOOL, SeqCst,
                        AtomicUint, INIT_ATOMIC_UINT};
-    use std::vec;
 
     #[test]
     fn smoke() {
@@ -615,7 +614,7 @@ mod tests {
         let pool = BufferPool::<(int, uint)>::new();
         let (w, s) = pool.deque();
 
-        let (threads, hits) = vec::unzip(range(0, NTHREADS).map(|_| {
+        let (threads, hits): (Vec<_>, Vec<_>) = range(0, NTHREADS).map(|_| {
             let s = s.clone();
             let unique_box = box AtomicUint::new(0);
             let thread_box = UnsafeAtomicUint(unsafe {
@@ -637,7 +636,7 @@ mod tests {
                     }
                 }
             }), unique_box)
-        }));
+        }).unzip();
 
         let mut rng = rand::thread_rng();
         let mut myhit = false;
