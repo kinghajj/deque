@@ -65,7 +65,8 @@ use core::kinds::marker;
 use std::mem::{forget, min_align_of, size_of, transmute};
 use core::ptr;
 
-use std::sync::atomic::{AtomicInt, AtomicPtr, SeqCst};
+use std::sync::atomic::{AtomicInt, AtomicPtr};
+use std::sync::atomic::Ordering::SeqCst;
 
 // Once the queue is less than 1/K full, then it will be downsized. Note that
 // the deque requires that this number be less than 2.
@@ -419,8 +420,9 @@ mod tests {
     use std::rand;
     use std::rand::Rng;
     use std::thread::{Thread, JoinGuard};
-    use std::sync::atomic::{AtomicBool, INIT_ATOMIC_BOOL, SeqCst,
-                       AtomicUint, INIT_ATOMIC_UINT};
+    use std::sync::atomic::{AtomicBool, ATOMIC_BOOL_INIT,
+                       AtomicUint, ATOMIC_UINT_INIT};
+    use std::sync::atomic::Ordering::SeqCst;
 
     #[test]
     fn smoke() {
@@ -555,8 +557,8 @@ mod tests {
     fn stress() {
         static AMT: int = 100000;
         static NTHREADS: int = 8;
-        static DONE: AtomicBool = INIT_ATOMIC_BOOL;
-        static HITS: AtomicUint = INIT_ATOMIC_UINT;
+        static DONE: AtomicBool = ATOMIC_BOOL_INIT;
+        static HITS: AtomicUint = ATOMIC_UINT_INIT;
         let pool = BufferPool::<int>::new();
         let (w, s) = pool.deque();
 
@@ -610,7 +612,7 @@ mod tests {
     fn no_starvation() {
         static AMT: int = 10000;
         static NTHREADS: int = 4;
-        static DONE: AtomicBool = INIT_ATOMIC_BOOL;
+        static DONE: AtomicBool = ATOMIC_BOOL_INIT;
         let pool = BufferPool::<(int, uint)>::new();
         let (w, s) = pool.deque();
 
