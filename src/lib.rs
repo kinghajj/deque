@@ -41,10 +41,10 @@
 //!     let mut stealer2 = stealer.clone();
 //!     stealer2.steal();
 
-#![feature(globs, unsafe_destructor)]
+#![feature(unsafe_destructor)]
 
 #![experimental]
-#![allow(dead_code)]
+#![allow(dead_code, unstable)]
 
 extern crate alloc;
 extern crate core;
@@ -61,7 +61,7 @@ use std::sync::{Arc, Mutex};
 use alloc::heap::{allocate, deallocate};
 use std::boxed::Box;
 use std::vec::Vec;
-use core::kinds::marker;
+use core::marker;
 use std::mem::{forget, min_align_of, size_of, transmute};
 use core::ptr;
 
@@ -70,14 +70,14 @@ use std::sync::atomic::Ordering::SeqCst;
 
 // Once the queue is less than 1/K full, then it will be downsized. Note that
 // the deque requires that this number be less than 2.
-static K: int = 4;
+static K: isize = 4;
 
 // Minimum number of bits that a buffer size should be. No buffer will resize to
 // under this value, and all deques will initially contain a buffer of this
 // size.
 //
 // The size in question is 1 << MIN_BITS
-static MIN_BITS: uint = 7;
+static MIN_BITS: usize = 7;
 
 struct Deque<T> {
     bottom: AtomicInt,
@@ -143,7 +143,7 @@ pub struct BufferPool<T> {
 ///      LLVM is probably pretty good at doing this already.
 struct Buffer<T> {
     storage: *const T,
-    log_size: uint,
+    log_size: usize,
 }
 
 unsafe impl<T: Send> Send for Buffer<T> { }
@@ -164,12 +164,12 @@ impl<T: Send> BufferPool<T> {
          Stealer { deque: b, _noshare: marker::NoSync })
     }
 
-    fn alloc(&mut self, bits: uint) -> Box<Buffer<T>> {
+    fn alloc(&mut self, bits: usize) -> Box<Buffer<T>> {
         unsafe {
             let mut pool = self.pool.lock().unwrap();
             match pool.iter().position(|x| x.size() >= (1 << bits)) {
                 Some(i) => pool.remove(i),
-                None => box Buffer::new(bits)
+                None => Box::new(Buffer::new(bits))
             }
         }
     }
@@ -304,7 +304,7 @@ impl<T: Send> Deque<T> {
         }
     }
 
-    unsafe fn maybe_shrink(&self, b: int, t: int) {
+    unsafe fn maybe_shrink(&self, b: isize, t: isize) {
         let a = self.array.load(SeqCst);
         if b - t < (*a).size() / K && b - t > (1 << MIN_BITS) {
             self.swap_buffer(b, a, (*a).resize(b, t, -1));
@@ -318,9 +318,9 @@ impl<T: Send> Deque<T> {
     // after this method has called 'free' on it. The continued usage is simply
     // a read followed by a forget, but we must make sure that the memory can
     // continue to be read after we flag this buffer for reclamation.
-    unsafe fn swap_buffer(&self, b: int, old: *mut Buffer<T>,
+    unsafe fn swap_buffer(&self, b: isize, old: *mut Buffer<T>,
                           buf: Buffer<T>) -> *mut Buffer<T> {
-        let newbuf: *mut Buffer<T> = transmute(box buf);
+        let newbuf: *mut Buffer<T> = transmute(Box::new(buf));
         self.array.store(newbuf, SeqCst);
         let ss = (*newbuf).size();
         self.bottom.store(b + ss, SeqCst);
@@ -350,12 +350,12 @@ impl<T: Send> Drop for Deque<T> {
 }
 
 #[inline]
-fn buffer_alloc_size<T>(log_size: uint) -> uint {
+fn buffer_alloc_size<T>(log_size: usize) -> usize {
     (1 << log_size) * size_of::<T>()
 }
 
 impl<T: Send> Buffer<T> {
-    unsafe fn new(log_size: uint) -> Buffer<T> {
+    unsafe fn new(log_size: usize) -> Buffer<T> {
         let size = buffer_alloc_size::<T>(log_size);
         let buffer = allocate(size, min_align_of::<T>());
         if buffer.is_null() { ::alloc::oom() }
@@ -365,12 +365,12 @@ impl<T: Send> Buffer<T> {
         }
     }
 
-    fn size(&self) -> int { 1 << self.log_size }
+    fn size(&self) -> isize { 1 << self.log_size }
 
     // Apparently LLVM cannot optimize (foo % (1 << bar)) into this implicitly
-    fn mask(&self) -> int { (1 << self.log_size) - 1 }
+    fn mask(&self) -> isize { (1 << self.log_size) - 1 }
 
-    unsafe fn elem(&self, i: int) -> *const T {
+    unsafe fn elem(&self, i: isize) -> *const T {
         self.storage.offset(i & self.mask())
     }
 
@@ -378,23 +378,23 @@ impl<T: Send> Buffer<T> {
     // nor does this clear out the contents contained within. Hence, this is a
     // very unsafe method which the caller needs to treat specially in case a
     // race is lost.
-    unsafe fn get(&self, i: int) -> T {
+    unsafe fn get(&self, i: isize) -> T {
         ptr::read(self.elem(i))
     }
 
     // Unsafe because this unsafely overwrites possibly uninitialized or
     // initialized data.
-    unsafe fn put(&self, i: int, t: T) {
+    unsafe fn put(&self, i: isize, t: T) {
         ptr::write(self.elem(i) as *mut T, t);
     }
 
     // Again, unsafe because this has incredibly dubious ownership violations.
     // It is assumed that this buffer is immediately dropped.
-    unsafe fn resize(&self, b: int, t: int, delta: int) -> Buffer<T> {
+    unsafe fn resize(&self, b: isize, t: isize, delta: isize) -> Buffer<T> {
         // NB: not entirely obvious, but thanks to 2's complement,
-        // casting delta to uint and then adding gives the desired
+        // casting delta to usize and then adding gives the desired
         // effect.
-        let buf = Buffer::new(self.log_size + delta as uint);
+        let buf = Buffer::new(self.log_size + delta as usize);
         for i in range(t, b) {
             buf.put(i, self.get(i));
         }
@@ -416,6 +416,7 @@ mod tests {
     use core::prelude::*;
     use super::{Data, BufferPool, Abort, Empty, Worker, Stealer};
 
+    use std::boxed::Box;
     use std::mem;
     use std::rand;
     use std::rand::Rng;
@@ -430,7 +431,7 @@ mod tests {
         let (w, s) = pool.deque();
         assert_eq!(w.pop(), None);
         assert_eq!(s.steal(), Empty);
-        w.push(1i);
+        w.push(1is);
         assert_eq!(w.pop(), Some(1));
         w.push(1);
         assert_eq!(s.steal(), Data(1));
@@ -440,10 +441,10 @@ mod tests {
 
     #[test]
     fn stealpush() {
-        static AMT: int = 100000;
-        let pool = BufferPool::<int>::new();
+        static AMT: isize = 100000;
+        let pool = BufferPool::<isize>::new();
         let (w, s) = pool.deque();
-        let t = Thread::spawn(move || {
+        let t = Thread::scoped(move || {
             let mut left = AMT;
             while left > 0 {
                 match s.steal() {
@@ -465,10 +466,10 @@ mod tests {
 
     #[test]
     fn stealpush_large() {
-        static AMT: int = 100000;
-        let pool = BufferPool::<(int, int)>::new();
+        static AMT: isize = 100000;
+        let pool = BufferPool::<(isize, isize)>::new();
         let (w, s) = pool.deque();
-        let t = Thread::spawn(move || {
+        let t = Thread::scoped(move || {
             let mut left = AMT;
             while left > 0 {
                 match s.steal() {
@@ -491,22 +492,22 @@ mod tests {
     unsafe impl Send for UnsafeAtomicUint { }
     impl Copy for UnsafeAtomicUint { }
 
-    fn stampede(w: Worker<Box<int>>, s: Stealer<Box<int>>,
-                nthreads: int, amt: uint) {
+    fn stampede(w: Worker<Box<isize>>, s: Stealer<Box<isize>>,
+                nthreads: isize, amt: usize) {
         for _ in range(0, amt) {
-            w.push(box 20);
+            w.push(Box::new(20));
         }
         let mut remaining = AtomicUint::new(amt);
         let unsafe_remaining = UnsafeAtomicUint(&mut remaining);
 
         let threads = range(0, nthreads).map(|_| {
             let s = s.clone();
-            Thread::spawn(move || {
+            Thread::scoped(move || {
                 unsafe {
                     let UnsafeAtomicUint(unsafe_remaining) = unsafe_remaining;
                     while (*unsafe_remaining).load(SeqCst) > 0 {
                         match s.steal() {
-                            Data(box 20) => {
+                            Data(ref i) if **i == 20 => {
                                 (*unsafe_remaining).fetch_sub(1, SeqCst);
                             }
                             Data(..) => panic!(),
@@ -519,7 +520,7 @@ mod tests {
 
         while remaining.load(SeqCst) > 0 {
             match w.pop() {
-                Some(box 20) => { remaining.fetch_sub(1, SeqCst); }
+                Some(ref i) if **i == 20 => { remaining.fetch_sub(1, SeqCst); }
                 Some(..) => panic!(),
                 None => {}
             }
@@ -532,18 +533,18 @@ mod tests {
 
     #[test]
     fn run_stampede() {
-        let pool = BufferPool::<Box<int>>::new();
+        let pool = BufferPool::<Box<isize>>::new();
         let (w, s) = pool.deque();
         stampede(w, s, 8, 10000);
     }
 
     #[test]
     fn many_stampede() {
-        static AMT: uint = 4;
-        let pool = BufferPool::<Box<int>>::new();
+        static AMT: usize = 4;
+        let pool = BufferPool::<Box<isize>>::new();
         let threads = range(0, AMT).map(|_| {
             let (w, s) = pool.deque();
-            Thread::spawn(move || {
+            Thread::scoped(move || {
                 stampede(w, s, 4, 10000);
             })
         }).collect::<Vec<JoinGuard<()>>>();
@@ -555,16 +556,16 @@ mod tests {
 
     #[test]
     fn stress() {
-        static AMT: int = 100000;
-        static NTHREADS: int = 8;
+        static AMT: isize = 100000;
+        static NTHREADS: isize = 8;
         static DONE: AtomicBool = ATOMIC_BOOL_INIT;
         static HITS: AtomicUint = ATOMIC_UINT_INIT;
-        let pool = BufferPool::<int>::new();
+        let pool = BufferPool::<isize>::new();
         let (w, s) = pool.deque();
 
         let threads = range(0, NTHREADS).map(|_| {
             let s = s.clone();
-            Thread::spawn(move || {
+            Thread::scoped(move || {
                 loop {
                     match s.steal() {
                         Data(2) => { HITS.fetch_add(1, SeqCst); }
@@ -579,7 +580,7 @@ mod tests {
         let mut rng = rand::thread_rng();
         let mut expected = 0;
         while expected < AMT {
-            if rng.gen_range(0i, 3) == 2 {
+            if rng.gen_range(0is, 3) == 2 {
                 match w.pop() {
                     None => {}
                     Some(2) => { HITS.fetch_add(1, SeqCst); },
@@ -591,7 +592,7 @@ mod tests {
             }
         }
 
-        while HITS.load(SeqCst) < AMT as uint {
+        while HITS.load(SeqCst) < AMT as usize {
             match w.pop() {
                 None => {}
                 Some(2) => { HITS.fetch_add(1, SeqCst); },
@@ -604,26 +605,26 @@ mod tests {
             assert!(thread.join().is_ok());
         }
 
-        assert_eq!(HITS.load(SeqCst), expected as uint);
+        assert_eq!(HITS.load(SeqCst), expected as usize);
     }
 
     #[test]
     #[cfg_attr(windows, ignore)] // apparently windows scheduling is weird?
     fn no_starvation() {
-        static AMT: int = 10000;
-        static NTHREADS: int = 4;
+        static AMT: isize = 10000;
+        static NTHREADS: isize = 4;
         static DONE: AtomicBool = ATOMIC_BOOL_INIT;
-        let pool = BufferPool::<(int, uint)>::new();
+        let pool = BufferPool::<(isize, usize)>::new();
         let (w, s) = pool.deque();
 
         let (threads, hits): (Vec<_>, Vec<_>) = range(0, NTHREADS).map(|_| {
             let s = s.clone();
-            let unique_box = box AtomicUint::new(0);
+            let unique_box = Box::new(AtomicUint::new(0));
             let thread_box = UnsafeAtomicUint(unsafe {
                 *mem::transmute::<&Box<AtomicUint>,
                                   *const *mut AtomicUint>(&unique_box)
             });
-            (Thread::spawn(move || {
+            (Thread::scoped(move || {
                 unsafe {
                     let UnsafeAtomicUint(thread_box) = thread_box;
                     loop {
@@ -644,7 +645,7 @@ mod tests {
         let mut myhit = false;
         'outer: loop {
             for _ in range(0, rng.gen_range(0, AMT)) {
-                if !myhit && rng.gen_range(0i, 3) == 2 {
+                if !myhit && rng.gen_range(0is, 3) == 2 {
                     match w.pop() {
                         None => {}
                         Some((1, 2)) => myhit = true,
