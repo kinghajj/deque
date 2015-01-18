@@ -418,7 +418,7 @@ mod tests {
     use std::rand::Rng;
     use std::thread::{Thread, JoinGuard};
     use std::sync::atomic::{AtomicBool, ATOMIC_BOOL_INIT,
-                       AtomicUint, ATOMIC_UINT_INIT};
+                       AtomicUsize, ATOMIC_USIZE_INIT};
     use std::sync::atomic::Ordering::SeqCst;
 
     #[test]
@@ -483,24 +483,24 @@ mod tests {
         assert!(t.join().is_ok());
     }
 
-    struct UnsafeAtomicUint(*mut AtomicUint);
+    struct UnsafeAtomicUsize(*mut AtomicUsize);
 
-    unsafe impl Send for UnsafeAtomicUint { }
-    impl Copy for UnsafeAtomicUint { }
+    unsafe impl Send for UnsafeAtomicUsize { }
+    impl Copy for UnsafeAtomicUsize { }
 
     fn stampede(w: Worker<Box<isize>>, s: Stealer<Box<isize>>,
                 nthreads: isize, amt: usize) {
         for _ in range(0, amt) {
             w.push(Box::new(20));
         }
-        let mut remaining = AtomicUint::new(amt);
-        let unsafe_remaining = UnsafeAtomicUint(&mut remaining);
+        let mut remaining = AtomicUsize::new(amt);
+        let unsafe_remaining = UnsafeAtomicUsize(&mut remaining);
 
         let threads = range(0, nthreads).map(|_| {
             let s = s.clone();
             Thread::scoped(move || {
                 unsafe {
-                    let UnsafeAtomicUint(unsafe_remaining) = unsafe_remaining;
+                    let UnsafeAtomicUsize(unsafe_remaining) = unsafe_remaining;
                     while (*unsafe_remaining).load(SeqCst) > 0 {
                         match s.steal() {
                             Data(ref i) if **i == 20 => {
@@ -555,7 +555,7 @@ mod tests {
         static AMT: isize = 100000;
         static NTHREADS: isize = 8;
         static DONE: AtomicBool = ATOMIC_BOOL_INIT;
-        static HITS: AtomicUint = ATOMIC_UINT_INIT;
+        static HITS: AtomicUsize = ATOMIC_USIZE_INIT;
         let pool = BufferPool::<isize>::new();
         let (w, s) = pool.deque();
 
@@ -615,14 +615,14 @@ mod tests {
 
         let (threads, hits): (Vec<_>, Vec<_>) = range(0, NTHREADS).map(|_| {
             let s = s.clone();
-            let unique_box = Box::new(AtomicUint::new(0));
-            let thread_box = UnsafeAtomicUint(unsafe {
-                *mem::transmute::<&Box<AtomicUint>,
-                                  *const *mut AtomicUint>(&unique_box)
+            let unique_box = Box::new(AtomicUsize::new(0));
+            let thread_box = UnsafeAtomicUsize(unsafe {
+                *mem::transmute::<&Box<AtomicUsize>,
+                                  *const *mut AtomicUsize>(&unique_box)
             });
             (Thread::scoped(move || {
                 unsafe {
-                    let UnsafeAtomicUint(thread_box) = thread_box;
+                    let UnsafeAtomicUsize(thread_box) = thread_box;
                     loop {
                         match s.steal() {
                             Data((1, 2)) => {
