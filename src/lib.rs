@@ -61,7 +61,6 @@ use std::sync::{Arc, Mutex};
 use alloc::heap::{allocate, deallocate};
 use std::boxed::Box;
 use std::vec::Vec;
-use core::marker;
 use std::mem::{forget, min_align_of, size_of, transmute};
 use core::ptr;
 
@@ -92,7 +91,6 @@ struct Deque<T> {
 /// There may only be one worker per deque.
 pub struct Worker<T> {
     deque: Arc<Deque<T>>,
-    _noshare: marker::NoSync,
 }
 
 /// The stealing half of the work-stealing deque. Stealers have access to the
@@ -100,7 +98,6 @@ pub struct Worker<T> {
 /// `steal` method.
 pub struct Stealer<T> {
     deque: Arc<Deque<T>>,
-    _noshare: marker::NoSync,
 }
 
 /// When stealing some data, this is an enumeration of the possible outcomes.
@@ -160,8 +157,7 @@ impl<T: Send> BufferPool<T> {
     pub fn deque(&self) -> (Worker<T>, Stealer<T>) {
         let a = Arc::new(Deque::new(self.clone()));
         let b = a.clone();
-        (Worker { deque: a, _noshare: marker::NoSync },
-         Stealer { deque: b, _noshare: marker::NoSync })
+        (Worker { deque: a }, Stealer { deque: b })
     }
 
     fn alloc(&mut self, bits: usize) -> Box<Buffer<T>> {
@@ -222,7 +218,7 @@ impl<T: Send> Stealer<T> {
 
 impl<T: Send> Clone for Stealer<T> {
     fn clone(&self) -> Stealer<T> {
-        Stealer { deque: self.deque.clone(), _noshare: marker::NoSync }
+        Stealer { deque: self.deque.clone() }
     }
 }
 
