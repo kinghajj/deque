@@ -9,3 +9,6 @@ license-file = "LICENSE-MIT"
 homepage = "https://github.com/kinghajj/deque"
 repository = "http://github.com/kinghajj/deque.git"
 keywords = ["concurrent", "deque"]
+
+[dependencies]
+rand = "0.1.*"
