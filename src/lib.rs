@@ -41,10 +41,9 @@
 //!     let mut stealer2 = stealer.clone();
 //!     stealer2.steal();
 
+#![feature(alloc)]
+#![feature(core)]
 #![feature(unsafe_destructor)]
-
-#![experimental]
-#![allow(dead_code, unstable)]
 
 extern crate alloc;
 extern crate core;
