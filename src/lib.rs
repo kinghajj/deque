@@ -100,7 +100,7 @@ pub struct Stealer<T> {
 }
 
 /// When stealing some data, this is an enumeration of the possible outcomes.
-#[derive(PartialEq, Show)]
+#[derive(PartialEq, Debug)]
 pub enum Stolen<T> {
     /// The deque was empty at the time of stealing
     Empty,
