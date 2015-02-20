@@ -456,7 +456,7 @@ mod tests {
             w.push(1);
         }
 
-        assert!(t.join().is_ok());
+        t.join()
     }
 
     #[test]
@@ -479,7 +479,7 @@ mod tests {
             w.push((1, 10));
         }
 
-        assert!(t.join().is_ok());
+        t.join()
     }
 
     struct UnsafeAtomicUsize(*mut AtomicUsize);
@@ -522,7 +522,7 @@ mod tests {
         }
 
         for thread in threads.into_iter() {
-            assert!(thread.join().is_ok());
+            thread.join()
         }
     }
 
@@ -545,7 +545,7 @@ mod tests {
         }).collect::<Vec<JoinGuard<()>>>();
 
         for thread in threads.into_iter() {
-            assert!(thread.join().is_ok());
+            thread.join()
         }
     }
 
@@ -597,7 +597,7 @@ mod tests {
         DONE.store(true, SeqCst);
 
         for thread in threads.into_iter() {
-            assert!(thread.join().is_ok());
+            thread.join()
         }
 
         assert_eq!(HITS.load(SeqCst), expected as usize);
@@ -663,7 +663,7 @@ mod tests {
         DONE.store(true, SeqCst);
 
         for thread in threads.into_iter() {
-            assert!(thread.join().is_ok());
+            thread.join()
         }
     }
 }
