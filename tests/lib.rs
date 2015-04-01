@@ -48,7 +48,7 @@ fn stealpush() {
         }
     });
 
-    for _ in range(0, AMT) {
+    for _ in 0..AMT {
         w.push(1);
     }
 
@@ -71,7 +71,7 @@ fn stealpush_large() {
         }
     });
 
-    for _ in range(0, AMT) {
+    for _ in 0..AMT {
         w.push((1, 10));
     }
 
@@ -85,13 +85,13 @@ impl Copy for UnsafeAtomicUsize { }
 
 fn stampede(w: Worker<Box<isize>>, s: Stealer<Box<isize>>,
             nthreads: isize, amt: usize) {
-    for _ in range(0, amt) {
+    for _ in 0..amt {
         w.push(Box::new(20));
     }
     let mut remaining = AtomicUsize::new(amt);
     let unsafe_remaining = UnsafeAtomicUsize(&mut remaining);
 
-    let threads = range(0, nthreads).map(|_| {
+    let threads = (0..nthreads).map(|_| {
         let s = s.clone();
         thread::scoped(move || {
             unsafe {
@@ -133,7 +133,7 @@ fn run_stampede() {
 fn many_stampede() {
     static AMT: usize = 4;
     let pool = BufferPool::<Box<isize>>::new();
-    let threads = range(0, AMT).map(|_| {
+    let threads = (0..AMT).map(|_| {
         let (w, s) = pool.deque();
         thread::scoped(move || {
             stampede(w, s, 4, 10000);
@@ -154,7 +154,7 @@ fn stress() {
     let pool = BufferPool::<isize>::new();
     let (w, s) = pool.deque();
 
-    let threads = range(0, NTHREADS).map(|_| {
+    let threads = (0..NTHREADS).map(|_| {
         let s = s.clone();
         thread::scoped(move || {
             loop {
@@ -208,7 +208,7 @@ fn no_starvation() {
     let pool = BufferPool::<(isize, usize)>::new();
     let (w, s) = pool.deque();
 
-    let (threads, hits): (Vec<_>, Vec<_>) = range(0, NTHREADS).map(|_| {
+    let (threads, hits): (Vec<_>, Vec<_>) = (0..NTHREADS).map(|_| {
         let s = s.clone();
         let unique_box = Box::new(AtomicUsize::new(0));
         let thread_box = UnsafeAtomicUsize(unsafe {
@@ -235,7 +235,7 @@ fn no_starvation() {
     let mut rng = rand::thread_rng();
     let mut myhit = false;
     'outer: loop {
-        for _ in range(0, rng.gen_range(0, AMT)) {
+        for _ in (0..rng.gen_range(0, AMT)) {
             if !myhit && rng.gen_range(0, 3) == 2 {
                 match w.pop() {
                     None => {}

@@ -29,15 +29,15 @@
 //!     let (mut worker, mut stealer) = pool.deque();
 //!
 //!     // Only the worker may push/pop
-//!     worker.push(1i);
+//!     worker.push(1);
 //!     worker.pop();
 //!
 //!     // Stealers take data from the other end of the deque
-//!     worker.push(1i);
+//!     worker.push(1);
 //!     stealer.steal();
 //!
 //!     // Stealers can be cloned to have many stealers stealing in parallel
-//!     worker.push(1i);
+//!     worker.push(1);
 //!     let mut stealer2 = stealer.clone();
 //!     stealer2.steal();
 
@@ -77,7 +77,7 @@ static K: isize = 4;
 // The size in question is 1 << MIN_BITS
 static MIN_BITS: usize = 7;
 
-struct Deque<T> {
+struct Deque<T: Send> {
     bottom: AtomicIsize,
     top: AtomicIsize,
     array: AtomicPtr<Buffer<T>>,
@@ -88,16 +88,20 @@ struct Deque<T> {
 /// one side of the deque, and uses `push` and `pop` method to manipulate it.
 ///
 /// There may only be one worker per deque.
-pub struct Worker<T> {
+pub struct Worker<T: Send> {
     deque: Arc<Deque<T>>,
 }
+
+unsafe impl<T: Send> Send for Worker<T> { }
 
 /// The stealing half of the work-stealing deque. Stealers have access to the
 /// opposite end of the deque from the worker, and they only have access to the
 /// `steal` method.
-pub struct Stealer<T> {
+pub struct Stealer<T: Send> {
     deque: Arc<Deque<T>>,
 }
+
+unsafe impl<T: Send> Send for Stealer<T> { }
 
 /// When stealing some data, this is an enumeration of the possible outcomes.
 #[derive(PartialEq, Debug)]
@@ -118,7 +122,7 @@ pub enum Stolen<T> {
 /// This data structure is protected by a mutex, but it is rarely used. Deques
 /// will only use this structure when allocating a new buffer or deallocating a
 /// previous one.
-pub struct BufferPool<T> {
+pub struct BufferPool<T: Send> {
     pool: Arc<Mutex<Vec<Box<Buffer<T>>>>>,
 }
 
@@ -137,7 +141,7 @@ pub struct BufferPool<T> {
 ///
 ///   2. We can certainly avoid bounds checks using *T instead of Vec<T>, although
 ///      LLVM is probably pretty good at doing this already.
-struct Buffer<T> {
+struct Buffer<T: Send> {
     storage: *const T,
     log_size: usize,
 }
@@ -337,7 +341,7 @@ impl<T: Send> Drop for Deque<T> {
         let a = self.array.load(SeqCst);
         // Free whatever is leftover in the dequeue, and then move the buffer
         // back into the pool.
-        for i in range(t, b) {
+        for i in t..b {
             let _: T = unsafe { (*a).get(i) };
         }
         self.pool.free(unsafe { transmute(a) });
@@ -389,8 +393,8 @@ impl<T: Send> Buffer<T> {
         // NB: not entirely obvious, but thanks to 2's complement,
         // casting delta to usize and then adding gives the desired
         // effect.
-        let buf = Buffer::new(self.log_size + delta as usize);
-        for i in range(t, b) {
+        let buf = Buffer::new(self.log_size.wrapping_add(delta as usize));
+        for i in t..b {
             buf.put(i, self.get(i));
         }
         return buf;

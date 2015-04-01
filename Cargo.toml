@@ -11,4 +11,4 @@ repository = "http://github.com/kinghajj/deque.git"
 keywords = ["concurrent", "deque"]
 
 [dependencies]
-rand = "0.1.*"
+rand = "0.3.*"
