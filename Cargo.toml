@@ -1,8 +1,8 @@
 [package]
 name = "deque"
 description = "A (mostly) lock-free concurrent work-stealing deque"
-version = "0.1.9"
-authors = ["Alex Crichton <alex@alexcrichton.com>", "Samuel Fredrickson <kinghajj@gmail.com>"]
+version = "0.2.0"
+authors = ["Alex Crichton <alex@alexcrichton.com>", "Samuel Fredrickson <kinghajj@gmail.com>", "Linus Färnstrand <faern@faern.net>"]
 readme = "README.md"
 # see also LICENSE-APACHE
 license-file = "LICENSE-MIT"
