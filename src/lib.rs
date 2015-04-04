@@ -42,11 +42,8 @@
 //!     stealer2.steal();
 
 #![feature(alloc)]
-#![feature(core)]
-#![feature(unsafe_destructor)]
 
 extern crate alloc;
-extern crate core;
 
 // NB: the "buffer pool" strategy is not done for speed, but rather for
 //     correctness. For more info, see the comment on `swap_buffer`
@@ -61,7 +58,7 @@ use alloc::heap::{allocate, deallocate};
 use std::boxed::Box;
 use std::vec::Vec;
 use std::mem::{forget, min_align_of, size_of, transmute};
-use core::ptr;
+use std::ptr;
 
 use std::sync::atomic::{AtomicIsize, AtomicPtr};
 use std::sync::atomic::Ordering::SeqCst;
@@ -333,7 +330,6 @@ impl<T: Send> Deque<T> {
 }
 
 
-#[unsafe_destructor]
 impl<T: Send> Drop for Deque<T> {
     fn drop(&mut self) {
         let t = self.top.load(SeqCst);
@@ -401,7 +397,6 @@ impl<T: Send> Buffer<T> {
     }
 }
 
-#[unsafe_destructor]
 impl<T: Send> Drop for Buffer<T> {
     fn drop(&mut self) {
         // It is assumed that all buffers are empty on drop.

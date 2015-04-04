@@ -1,10 +1,5 @@
-#![feature(core)]
-
-extern crate core;
 extern crate deque;
 extern crate rand;
-
-use core::prelude::*;
 
 use std::boxed::Box;
 use std::mem;
