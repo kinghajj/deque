@@ -1,3 +1,5 @@
+#![allow(raw_pointer_derive)]
+
 extern crate deque;
 extern crate rand;
 
@@ -73,10 +75,10 @@ fn stealpush_large() {
     t.join()
 }
 
+#[derive(Clone, Copy)]
 struct UnsafeAtomicUsize(*mut AtomicUsize);
 
 unsafe impl Send for UnsafeAtomicUsize { }
-impl Copy for UnsafeAtomicUsize { }
 
 fn stampede(w: Worker<Box<isize>>, s: Stealer<Box<isize>>,
             nthreads: isize, amt: usize) {
