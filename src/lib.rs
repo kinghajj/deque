@@ -402,7 +402,6 @@ impl<T: Send> Drop for Buffer<T> {
         // It is assumed that all buffers are empty on drop.
         let size = buffer_alloc_size::<T>(self.log_size);
         unsafe {
-            //deallocate(self.storage as *mut u8, size, min_align_of::<T>());
             let buffer = slice::from_raw_parts(self.storage, size);
             drop(buffer);
         }
