@@ -400,9 +400,6 @@ impl<T: Send> Drop for Buffer<T> {
     fn drop(&mut self) {
         // It is assumed that all buffers are empty on drop.
         let size = buffer_alloc_size::<T>(self.log_size);
-        unsafe {
-            let buffer = slice::from_raw_parts(self.storage, size);
-            drop(buffer);
-        }
+        unsafe { drop(slice::from_raw_parts(self.storage, size)); }
     }
 }
