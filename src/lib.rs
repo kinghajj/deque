@@ -41,10 +41,6 @@
 //!     let mut stealer2 = stealer.clone();
 //!     stealer2.steal();
 
-#![feature(alloc)]
-
-extern crate alloc;
-
 // NB: the "buffer pool" strategy is not done for speed, but rather for
 //     correctness. For more info, see the comment on `swap_buffer`
 
@@ -54,11 +50,11 @@ extern crate alloc;
 pub use self::Stolen::*;
 
 use std::sync::{Arc, Mutex};
-use alloc::heap::{allocate, deallocate};
 use std::boxed::Box;
 use std::vec::Vec;
-use std::mem::{forget, min_align_of, size_of, transmute};
+use std::mem::{forget, size_of, transmute};
 use std::ptr;
+use std::slice;
 
 use std::sync::atomic::{AtomicIsize, AtomicPtr};
 use std::sync::atomic::Ordering::SeqCst;
@@ -352,8 +348,12 @@ fn buffer_alloc_size<T>(log_size: usize) -> usize {
 impl<T: Send> Buffer<T> {
     unsafe fn new(log_size: usize) -> Buffer<T> {
         let size = buffer_alloc_size::<T>(log_size);
-        let buffer = allocate(size, min_align_of::<T>());
-        if buffer.is_null() { ::alloc::oom() }
+
+        let mut buffer_vec = Vec::with_capacity(size);
+        buffer_vec.set_len(size);
+        let buffer: *const T = buffer_vec.get_unchecked(0);
+        forget(buffer_vec);
+
         Buffer {
             storage: buffer as *const T,
             log_size: log_size,
@@ -401,6 +401,10 @@ impl<T: Send> Drop for Buffer<T> {
     fn drop(&mut self) {
         // It is assumed that all buffers are empty on drop.
         let size = buffer_alloc_size::<T>(self.log_size);
-        unsafe { deallocate(self.storage as *mut u8, size, min_align_of::<T>()) }
+        unsafe {
+            //deallocate(self.storage as *mut u8, size, min_align_of::<T>());
+            let buffer = slice::from_raw_parts(self.storage, size);
+            drop(buffer);
+        }
     }
 }
