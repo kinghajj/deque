@@ -349,8 +349,7 @@ impl<T: Send> Buffer<T> {
     unsafe fn new(log_size: usize) -> Buffer<T> {
         let size = buffer_alloc_size::<T>(log_size);
 
-        let mut buffer_vec = Vec::with_capacity(size);
-        buffer_vec.set_len(size);
+        let buffer_vec = Vec::with_capacity(size);
         let buffer: *const T = buffer_vec.get_unchecked(0);
         forget(buffer_vec);
 
