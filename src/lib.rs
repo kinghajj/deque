@@ -54,7 +54,6 @@ use std::boxed::Box;
 use std::vec::Vec;
 use std::mem::{forget, size_of, transmute};
 use std::ptr;
-use std::slice;
 
 use std::sync::atomic::{AtomicIsize, AtomicPtr};
 use std::sync::atomic::Ordering::SeqCst;
@@ -400,6 +399,6 @@ impl<T: Send> Drop for Buffer<T> {
     fn drop(&mut self) {
         // It is assumed that all buffers are empty on drop.
         let size = buffer_alloc_size::<T>(self.log_size);
-        unsafe { drop(slice::from_raw_parts(self.storage, size)); }
+        unsafe { drop(Vec::from_raw_parts(self.storage as *mut T, 0, size)); }
     }
 }
