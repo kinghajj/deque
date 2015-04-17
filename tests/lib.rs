@@ -1,4 +1,5 @@
 #![allow(raw_pointer_derive)]
+#![feature(scoped)]
 
 extern crate deque;
 extern crate rand;
