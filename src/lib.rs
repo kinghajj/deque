@@ -149,6 +149,8 @@ impl<T: Send> BufferPool<T> {
     /// Allocates a new buffer pool which in turn can be used to allocate new
     /// deques.
     pub fn new() -> BufferPool<T> {
+        // don't allow zero-sized type, which causes allocation to fail
+        debug_assert!(size_of::<T>() > 0);
         BufferPool { pool: Arc::new(Mutex::new(Vec::new())) }
     }
 
