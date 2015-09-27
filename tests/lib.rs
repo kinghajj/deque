@@ -1,13 +1,11 @@
 #![allow(raw_pointer_derive)]
-#![feature(scoped)]
 
 extern crate deque;
 extern crate rand;
 
 use std::boxed::Box;
 use std::mem;
-use std::thread;
-use std::thread::JoinGuard;
+use std::thread::{self, JoinHandle};
 use std::sync::atomic::{AtomicBool, ATOMIC_BOOL_INIT, AtomicUsize, ATOMIC_USIZE_INIT};
 use std::sync::atomic::Ordering::SeqCst;
 
@@ -33,7 +31,7 @@ fn stealpush() {
     static AMT: isize = 100000;
     let pool = BufferPool::<isize>::new();
     let (w, s) = pool.deque();
-    let t = thread::scoped(move || {
+    let t = thread::spawn(move || {
         let mut left = AMT;
         while left > 0 {
             match s.steal() {
@@ -50,7 +48,7 @@ fn stealpush() {
         w.push(1);
     }
 
-    t.join()
+    t.join().unwrap();
 }
 
 #[test]
@@ -58,7 +56,7 @@ fn stealpush_large() {
     static AMT: isize = 100000;
     let pool = BufferPool::<(isize, isize)>::new();
     let (w, s) = pool.deque();
-    let t = thread::scoped(move || {
+    let t = thread::spawn(move || {
         let mut left = AMT;
         while left > 0 {
             match s.steal() {
@@ -73,7 +71,7 @@ fn stealpush_large() {
         w.push((1, 10));
     }
 
-    t.join()
+    t.join().unwrap();
 }
 
 #[derive(Clone, Copy)]
@@ -91,7 +89,7 @@ fn stampede(w: Worker<Box<isize>>, s: Stealer<Box<isize>>,
 
     let threads = (0..nthreads).map(|_| {
         let s = s.clone();
-        thread::scoped(move || {
+        thread::spawn(move || {
             unsafe {
                 let UnsafeAtomicUsize(unsafe_remaining) = unsafe_remaining;
                 while (*unsafe_remaining).load(SeqCst) > 0 {
@@ -105,7 +103,7 @@ fn stampede(w: Worker<Box<isize>>, s: Stealer<Box<isize>>,
                 }
             }
         })
-    }).collect::<Vec<JoinGuard<()>>>();
+    }).collect::<Vec<JoinHandle<()>>>();
 
     while remaining.load(SeqCst) > 0 {
         match w.pop() {
@@ -116,7 +114,7 @@ fn stampede(w: Worker<Box<isize>>, s: Stealer<Box<isize>>,
     }
 
     for thread in threads.into_iter() {
-        thread.join()
+        thread.join().unwrap();
     }
 }
 
@@ -133,13 +131,13 @@ fn many_stampede() {
     let pool = BufferPool::<Box<isize>>::new();
     let threads = (0..AMT).map(|_| {
         let (w, s) = pool.deque();
-        thread::scoped(move || {
+        thread::spawn(move || {
             stampede(w, s, 4, 10000);
         })
-    }).collect::<Vec<JoinGuard<()>>>();
+    }).collect::<Vec<JoinHandle<()>>>();
 
     for thread in threads.into_iter() {
-        thread.join()
+        thread.join().unwrap();
     }
 }
 
@@ -154,7 +152,7 @@ fn stress() {
 
     let threads = (0..NTHREADS).map(|_| {
         let s = s.clone();
-        thread::scoped(move || {
+        thread::spawn(move || {
             loop {
                 match s.steal() {
                     Data(2) => { HITS.fetch_add(1, SeqCst); }
@@ -164,7 +162,7 @@ fn stress() {
                 }
             }
         })
-    }).collect::<Vec<JoinGuard<()>>>();
+    }).collect::<Vec<JoinHandle<()>>>();
 
     let mut rng = rand::thread_rng();
     let mut expected = 0;
@@ -191,7 +189,7 @@ fn stress() {
     DONE.store(true, SeqCst);
 
     for thread in threads.into_iter() {
-        thread.join()
+        thread.join().unwrap();
     }
 
     assert_eq!(HITS.load(SeqCst), expected as usize);
@@ -213,7 +211,7 @@ fn no_starvation() {
             *mem::transmute::<&Box<AtomicUsize>,
                               *const *mut AtomicUsize>(&unique_box)
         });
-        (thread::scoped(move || {
+        (thread::spawn(move || {
             unsafe {
                 let UnsafeAtomicUsize(thread_box) = thread_box;
                 loop {
@@ -257,6 +255,6 @@ fn no_starvation() {
     DONE.store(true, SeqCst);
 
     for thread in threads.into_iter() {
-        thread.join()
+        thread.join().unwrap();
     }
 }
