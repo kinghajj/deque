@@ -4,34 +4,30 @@
 
 This module contains an implementation of the Chase-Lev work stealing deque
 described in "Dynamic Circular Work-Stealing Deque". The implementation is
-heavily based on the pseudocode found in the paper.
+heavily based on the implementation using C11 atomics in "Correct and
+Efficient Work Stealing for Weak Memory Models".
 
-This implementation does not want to have the restriction of a garbage
-collector for reclamation of buffers, and instead it uses a shared pool of
-buffers. This shared pool is required for correctness in this
-implementation.
-
-The only lock-synchronized portions of this deque are the buffer allocation
-and deallocation portions. Otherwise all operations are lock-free.
+The only potentially lock-synchronized portion of this deque is the
+occasional call to the memory allocator when growing the deque. Otherwise
+all operations are lock-free.
 
 ## Example
 
-    use deque::BufferPool;
+    use deque;
 
-    let mut pool = BufferPool::new();
-    let (mut worker, mut stealer) = pool.deque();
+    let (worker, stealer) = deque::new();
 
     // Only the worker may push/pop
-    worker.push(1i);
+    worker.push(1);
     worker.pop();
 
     // Stealers take data from the other end of the deque
-    worker.push(1i);
+    worker.push(1);
     stealer.steal();
 
     // Stealers can be cloned to have many stealers stealing in parallel
-    worker.push(1i);
-    let mut stealer2 = stealer.clone();
+    worker.push(1);
+    let stealer2 = stealer.clone();
     stealer2.steal();
 
 ## History

@@ -1,5 +1,3 @@
-#![allow(raw_pointer_derive)]
-
 extern crate deque;
 extern crate rand;
 
@@ -9,13 +7,12 @@ use std::thread::{self, JoinHandle};
 use std::sync::atomic::{AtomicBool, ATOMIC_BOOL_INIT, AtomicUsize, ATOMIC_USIZE_INIT};
 use std::sync::atomic::Ordering::SeqCst;
 
-use deque::{Data, BufferPool, Abort, Empty, Worker, Stealer};
+use deque::{Data, Abort, Empty, Worker, Stealer};
 use rand::Rng;
 
 #[test]
 fn smoke() {
-    let pool = BufferPool::<isize>::new();
-    let (w, s) = pool.deque();
+    let (w, s) = deque::new::<isize>();
     assert_eq!(w.pop(), None);
     assert_eq!(s.steal(), Empty);
     w.push(1);
@@ -29,8 +26,7 @@ fn smoke() {
 #[test]
 fn stealpush() {
     static AMT: isize = 100000;
-    let pool = BufferPool::<isize>::new();
-    let (w, s) = pool.deque();
+    let (w, s) = deque::new::<isize>();
     let t = thread::spawn(move || {
         let mut left = AMT;
         while left > 0 {
@@ -54,8 +50,7 @@ fn stealpush() {
 #[test]
 fn stealpush_large() {
     static AMT: isize = 100000;
-    let pool = BufferPool::<(isize, isize)>::new();
-    let (w, s) = pool.deque();
+    let (w, s) = deque::new::<(isize, isize)>();
     let t = thread::spawn(move || {
         let mut left = AMT;
         while left > 0 {
@@ -120,17 +115,15 @@ fn stampede(w: Worker<Box<isize>>, s: Stealer<Box<isize>>,
 
 #[test]
 fn run_stampede() {
-    let pool = BufferPool::<Box<isize>>::new();
-    let (w, s) = pool.deque();
+    let (w, s) = deque::new::<Box<isize>>();
     stampede(w, s, 8, 10000);
 }
 
 #[test]
 fn many_stampede() {
     static AMT: usize = 4;
-    let pool = BufferPool::<Box<isize>>::new();
     let threads = (0..AMT).map(|_| {
-        let (w, s) = pool.deque();
+        let (w, s) = deque::new::<Box<isize>>();
         thread::spawn(move || {
             stampede(w, s, 4, 10000);
         })
@@ -147,8 +140,7 @@ fn stress() {
     static NTHREADS: isize = 8;
     static DONE: AtomicBool = ATOMIC_BOOL_INIT;
     static HITS: AtomicUsize = ATOMIC_USIZE_INIT;
-    let pool = BufferPool::<isize>::new();
-    let (w, s) = pool.deque();
+    let (w, s) = deque::new::<isize>();
 
     let threads = (0..NTHREADS).map(|_| {
         let s = s.clone();
@@ -201,8 +193,7 @@ fn no_starvation() {
     static AMT: isize = 10000;
     static NTHREADS: isize = 4;
     static DONE: AtomicBool = ATOMIC_BOOL_INIT;
-    let pool = BufferPool::<(isize, usize)>::new();
-    let (w, s) = pool.deque();
+    let (w, s) = deque::new::<(isize, usize)>();
 
     let (threads, hits): (Vec<_>, Vec<_>) = (0..NTHREADS).map(|_| {
         let s = s.clone();
@@ -231,7 +222,7 @@ fn no_starvation() {
     let mut rng = rand::thread_rng();
     let mut myhit = false;
     'outer: loop {
-        for _ in (0..rng.gen_range(0, AMT)) {
+        for _ in 0..rng.gen_range(0, AMT) {
             if !myhit && rng.gen_range(0, 3) == 2 {
                 match w.pop() {
                     None => {}
