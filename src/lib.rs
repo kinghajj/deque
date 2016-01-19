@@ -73,9 +73,16 @@ pub struct Worker<T: Send> {
 /// The stealing half of the work-stealing deque. Stealers have access to the
 /// opposite end of the deque from the worker, and they only have access to the
 /// `steal` method.
-#[derive(Clone)]
 pub struct Stealer<T: Send> {
     deque: Arc<Deque<T>>,
+}
+
+impl<T: Send> Clone for Stealer<T> {
+    fn clone(&self) -> Self {
+        Stealer {
+            deque: self.deque.clone()
+        }
+    }
 }
 
 /// When stealing some data, this is an enumeration of the possible outcomes.
