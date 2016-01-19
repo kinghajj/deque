@@ -249,3 +249,11 @@ fn no_starvation() {
         thread.join().unwrap();
     }
 }
+
+struct Unclonable;
+
+#[test]
+fn clone_stealer_of_unclonable_type() {
+    let (_, s) = deque::new::<Unclonable>();
+    let _ = s.clone();
+}
