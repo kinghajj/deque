@@ -13,22 +13,24 @@ all operations are lock-free.
 
 ## Example
 
-    use deque;
+```Rust
+use deque;
 
-    let (worker, stealer) = deque::new();
+let (worker, stealer) = deque::new();
 
-    // Only the worker may push/pop
-    worker.push(1);
-    worker.pop();
+// Only the worker may push/pop
+worker.push(1);
+worker.pop();
 
-    // Stealers take data from the other end of the deque
-    worker.push(1);
-    stealer.steal();
+// Stealers take data from the other end of the deque
+worker.push(1);
+stealer.steal();
 
-    // Stealers can be cloned to have many stealers stealing in parallel
-    worker.push(1);
-    let stealer2 = stealer.clone();
-    stealer2.steal();
+// Stealers can be cloned to have many stealers stealing in parallel
+worker.push(1);
+let stealer2 = stealer.clone();
+stealer2.steal();
+```
 
 ## History
 
