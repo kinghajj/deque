@@ -269,3 +269,12 @@ fn clone_stealer_of_unclonable_type() {
     let (_, s) = deque::new::<Unclonable>();
     let _ = s.clone();
 }
+
+#[test]
+fn fmt_debug() {
+    struct NotDebug;
+
+    let (worker, stealer) = deque::new::<NotDebug>();
+    assert!(format!("{:?}", worker).contains("Worker"));
+    assert!(format!("{:?}", stealer).contains("Stealer"));
+}

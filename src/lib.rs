@@ -44,6 +44,7 @@ use std::mem::forget;
 use std::ptr;
 use std::marker::PhantomData;
 use std::cell::Cell;
+use std::fmt;
 
 use std::sync::atomic::{AtomicIsize, AtomicPtr, fence};
 use std::sync::atomic::Ordering::{SeqCst, Acquire, Release, Relaxed};
@@ -333,5 +334,32 @@ impl<T: Send> Drop for Buffer<T> {
     fn drop(&mut self) {
         // It is assumed that all buffers are empty on drop.
         unsafe { deallocate(self.storage, self.size) }
+    }
+}
+
+impl<T: Send> fmt::Debug for Deque<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> fmt::Result {
+        f.debug_struct("Deque")
+            .field("bottom", &self.bottom)
+            .field("top", &self.top)
+            .field("array", &self.array)
+            .finish()
+    }
+}
+
+impl<T: Send> fmt::Debug for Worker<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> fmt::Result {
+        f.debug_struct("Worker")
+            .field("deque", &self.deque)
+            .field("marker", &self.marker)
+            .finish()
+    }
+}
+
+impl<T: Send> fmt::Debug for Stealer<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> fmt::Result {
+        f.debug_struct("Stealer")
+            .field("deque", &self.deque)
+            .finish()
     }
 }
