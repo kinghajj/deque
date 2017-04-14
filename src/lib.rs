@@ -79,9 +79,7 @@ pub struct Stealer<T: Send> {
 
 impl<T: Send> Clone for Stealer<T> {
     fn clone(&self) -> Self {
-        Stealer {
-            deque: self.deque.clone()
-        }
+        Stealer { deque: self.deque.clone() }
     }
 }
 
@@ -127,7 +125,11 @@ struct Buffer<T: Send> {
 pub fn new<T: Send>() -> (Worker<T>, Stealer<T>) {
     let a = Arc::new(Deque::new());
     let b = a.clone();
-    (Worker { deque: a, marker: PhantomData }, Stealer { deque: b })
+    (Worker {
+         deque: a,
+         marker: PhantomData,
+     },
+     Stealer { deque: b })
 }
 
 impl<T: Send> Worker<T> {
@@ -287,9 +289,13 @@ impl<T: Send> Buffer<T> {
         }
     }
 
-    fn size(&self) -> isize { self.size as isize }
+    fn size(&self) -> isize {
+        self.size as isize
+    }
 
-    fn mask(&self) -> isize { self.size as isize - 1 }
+    fn mask(&self) -> isize {
+        self.size as isize - 1
+    }
 
     unsafe fn elem(&self, i: isize) -> *mut T {
         self.storage.offset(i & self.mask())
