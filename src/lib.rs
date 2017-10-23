@@ -80,7 +80,7 @@ pub struct Stealer<T: Send> {
 
 impl<T: Send> Clone for Stealer<T> {
     fn clone(&self) -> Self {
-        Stealer { deque: self.deque.clone() }
+        Stealer { deque: Arc::clone(&self.deque) }
     }
 }
 
@@ -125,7 +125,7 @@ struct Buffer<T: Send> {
 /// Allocates a new work-stealing deque.
 pub fn new<T: Send>() -> (Worker<T>, Stealer<T>) {
     let a = Arc::new(Deque::new());
-    let b = a.clone();
+    let b = Arc::clone(&a);
     (Worker {
          deque: a,
          marker: PhantomData,
@@ -212,11 +212,11 @@ impl<T: Send> Deque<T> {
         }
         if self.top.compare_and_swap(t, t.wrapping_add(1), SeqCst) == t {
             self.bottom.store(t.wrapping_add(1), Relaxed);
-            return Some(data);
+            Some(data)
         } else {
             self.bottom.store(t.wrapping_add(1), Relaxed);
             forget(data); // Someone else stole this value
-            return None;
+            None
         }
     }
 
@@ -326,7 +326,7 @@ impl<T: Send> Buffer<T> {
             i = i.wrapping_add(1);
         }
         buf.prev = Some(self);
-        return buf;
+        buf
     }
 }
 
