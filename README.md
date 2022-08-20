@@ -3,7 +3,7 @@
 [![Build Status](https://travis-ci.org/kinghajj/deque.svg?branch=master)](https://travis-ci.org/kinghajj/deque)
 
 This module contains an implementation of the Chase-Lev work stealing deque
-described in "Dynamic Circular Work-Stealing Deque". The implementation is
+described in ["Dynamic Circular Work-Stealing Deque"](https://www.dre.vanderbilt.edu/~schmidt/PDF/work-stealing-dequeue.pdf). The implementation is
 heavily based on the implementation using C11 atomics in "Correct and
 Efficient Work Stealing for Weak Memory Models".
 
